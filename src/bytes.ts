@@ -12,3 +12,14 @@ export function toHex(bytes: Bytes): string {
 export function fromHex(hex: string): Bytes {
   return Uint8Array.fromHex(hex.slice(2)); // slice(2) skips the "0x"
 }
+
+/** The parts one after another: the GP's ⌢. */
+export function concatBytes(...parts: Bytes[]): Bytes {
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let at = 0;
+  for (const p of parts) {
+    out.set(p, at);
+    at += p.length;
+  }
+  return out;
+}
