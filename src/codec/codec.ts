@@ -5,6 +5,7 @@ import type { Bytes } from "../bytes.ts";
 import { Reader } from "./reader.ts";
 import { Writer } from "./writer.ts";
 import { fromHex } from "../bytes.ts";
+import type { Trace } from "./reader.ts";
 
 /** 𝔹_n: exactly n bytes, encoded as themselves. */
 export function fixedBytes(n: number): Codec<Bytes> {
@@ -45,9 +46,9 @@ export function encode<T>(codec: Codec<T>, value: T): Bytes {
   return w.finish();
 }
 
-/** The value these bytes encode. */
-export function decode<T>(codec: Codec<T>, bytes: Bytes): T {
-  return codec.decode(new Reader(bytes));
+/** The value these bytes encode. A trace gets every field. */
+export function decode<T>(codec: Codec<T>, bytes: Bytes, trace: Trace | null = null): T {
+  return codec.decode(new Reader(bytes, trace));
 }
 
 /** ℰ_l for l = 1, 2 or 4, as a JS number. */
@@ -96,7 +97,10 @@ export function seq<T>(item: Codec<T>): Codec<T[]> {
       w.natural(BigInt(items.length));
       for (const x of items) item.encode(w, x);
     },
-    decode: (r) => Array.from({ length: Number(r.natural()) }, () => item.decode(r)),
+    decode: (r) => {
+      const n = r.field("length", () => Number(r.natural()));
+      return Array.from({ length: n }, (_, i) => r.field(String(i), () => item.decode(r)));
+    },
     fromJson: (json) => (json as unknown[]).map((j) => item.fromJson(j)),
   };
 }
@@ -114,7 +118,7 @@ export function record<F extends Fields>(fields: F): Codec<{ [K in keyof F]: Val
     },
     decode: (r) => {
       const value: Partial<T> = {};
-      for (const name of names) value[name] = fields[name].decode(r);
+      for (const name of names) value[name] = r.field(name, () => fields[name].decode(r));
       return value as T;
     },
     fromJson: (json) => {

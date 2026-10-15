@@ -4,7 +4,13 @@
   "type": "module",
   "scripts": {
     "test": "node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./test/grafana.ts --test-reporter-destination=stdout \"test/**/*.test.ts\"",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "hello": "node bin/hello.ts",
+    "now": "node bin/now.ts",
+    "hexdump": "node bin/hexdump.ts",
+    "scoreboard": "node bin/scoreboard.ts",
+    "decode": "node bin/decode.ts",
+    "decode-work-item": "node bin/decode.ts work_item ../vectors/codec/tiny/work_item.bin"
   },
   "devDependencies": {
     "@types/node": "26.6.4",

@@ -1,5 +1,6 @@
 // Observability: the client tells the observability stack what it does. Events go to
 // Loki, numbers to the Pushgateway, and Grafana shows both.
+import { toHex } from "./bytes.ts";
 
 const LOKI = "http://127.0.0.1:3100";
 const PUSHGATEWAY = "http://127.0.0.1:9091";
@@ -29,30 +30,32 @@ export class Run {
 
   /** A number the run measured, such as how many tests passed. */
   number(name: string, value: number): void {
-    this.#numbers.push(`gray_tutorial_${name}{run_id="${this.id}"} ${value}\n`);
+    this.#numbers.push(`the_gray_tutor_${name}{run_id="${this.id}"} ${value}\n`);
   }
 
   /** Sends the run to the stack: where to see it in Grafana, or null if the stack is down. */
   async report(): Promise<string | null> {
-    const labels = { job: "gray_tutorial", client: CLIENT, kind: this.kind, run_id: this.id };
+    const labels = { job: "the_gray_tutor", client: CLIENT, kind: this.kind, run_id: this.id };
     try {
       const loki = await fetch(`${LOKI}/loki/api/v1/push`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ streams: [{ stream: labels, values: this.#events }] }),
       });
-      const group = `${PUSHGATEWAY}/metrics/job/gray_tutorial/client/${CLIENT}/kind/${this.kind}`;
+      const group = `${PUSHGATEWAY}/metrics/job/the_gray_tutor/client/${CLIENT}/kind/${this.kind}`;
       const push = await fetch(group, { method: "PUT", body: this.#numbers.join("") });
       if (!loki.ok || !push.ok) throw new Error("the stack said no");
     } catch {
       console.log("not reported: is the observability stack up? (../observability/obs up)");
       return null;
     }
-    return `${GRAFANA}/d/gray-tutorial?var-client=${CLIENT}&var-run_id=${this.id}`;
+    return `${GRAFANA}/d/the-gray-tutor?var-client=${CLIENT}&var-run_id=${this.id}`;
   }
 }
 
-/** An event as Loki stores it: one line of JSON. */
+/** An event as Loki stores it: one line of JSON, with bytes written as 0x hex. */
 function line(step: string, fields: Record<string, unknown>): string {
-  return JSON.stringify({ step, ...fields });
+  return JSON.stringify({ step, ...fields }, (_key, value) =>
+    value instanceof Uint8Array ? toHex(value) : value,
+  );
 }
