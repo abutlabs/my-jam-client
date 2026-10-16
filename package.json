@@ -10,7 +10,13 @@
     "hexdump": "node bin/hexdump.ts",
     "scoreboard": "node bin/scoreboard.ts",
     "decode": "node bin/decode.ts",
-    "decode-work-item": "node bin/decode.ts work_item ../vectors/codec/tiny/work_item.bin"
+    "decode-work-item": "node bin/decode.ts work_item ../vectors/codec/tiny/work_item.bin",
+    "decode-work-package": "node bin/decode.ts work_package ../vectors/codec/tiny/work_package.bin",
+    "decode-work-result": "node bin/decode.ts work_result ../vectors/codec/tiny/work_result_1.bin",
+    "decode-work-report": "node bin/decode.ts work_report ../vectors/codec/full/work_report.bin",
+    "decode-preimages": "node bin/decode.ts preimages_extrinsic ../vectors/codec/tiny/preimages_extrinsic.bin",
+    "decode-assurances": "node bin/decode.ts assurances_extrinsic ../vectors/codec/tiny/assurances_extrinsic.bin",
+    "decode-assurances-full": "node bin/decode.ts assurances_extrinsic ../vectors/codec/full/assurances_extrinsic.bin"
   },
   "devDependencies": {
     "@types/node": "26.6.4",

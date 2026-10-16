@@ -6,6 +6,9 @@ import { fileURLToPath } from "node:url";
 import type { Bytes } from "../src/bytes.ts";
 import type { Codec } from "../src/codec/codec.ts";
 import { decode, encode } from "../src/codec/codec.ts";
+import { test } from "node:test";
+import type { Config } from "../src/config.ts";
+import { FULL, TINY } from "../src/config.ts";
 
 /** The official test vectors' folder: vectors/, at the repo root. */
 export const VECTORS = fileURLToPath(new URL("../../vectors/", import.meta.url));
@@ -28,4 +31,18 @@ export function checkCodecVector<T>(codec: Codec<T>, name: string): void {
   assert.deepEqual(decoded, expected);
   const encoded: Bytes = encode(codec, expected);
   assert.deepEqual(encoded, bytes);
+}
+
+/**
+ * Tests a codec against a codec vector at both sizes, tiny and full. A codec whose shape
+ * depends on the size comes as a function of the config.
+ */
+export function testCodecVector(
+  name: string,
+  codec: Codec<unknown> | ((config: Config) => Codec<unknown>),
+): void {
+  for (const config of [TINY, FULL]) {
+    const sized = typeof codec === "function" ? codec(config) : codec;
+    test(`${name} (${config.name})`, () => checkCodecVector(sized, `codec/${config.name}/${name}`));
+  }
 }

@@ -7,18 +7,28 @@ import { toHex } from "../src/bytes.ts";
 import type { Codec } from "../src/codec/codec.ts";
 import { decode } from "../src/codec/codec.ts";
 import { Run } from "../src/obs.ts";
-import { RefineContext, WorkItem } from "../src/work.ts";
+import { RefineContext, WorkItem, WorkPackage, WorkDigest, WorkReport } from "../src/work.ts";
+import { PreimagesExtrinsic, TicketsExtrinsic, AssurancesExtrinsic } from "../src/block.ts";
+import type { Config } from "../src/config.ts";
+import { FULL, TINY } from "../src/config.ts";
 
-/** The structures this program knows, by the test vectors' names for them. */
-const CODECS: Record<string, Codec<unknown>> = {
+/** The structures this program knows, by the test vectors' names; some depend on the size. */
+const CODECS = (config: Config): Record<string, Codec<unknown>> => ({
   refine_context: RefineContext,
   work_item: WorkItem,
-};
+  work_package: WorkPackage,
+  work_result: WorkDigest,
+  work_report: WorkReport,
+  tickets_extrinsic: TicketsExtrinsic,
+  preimages_extrinsic: PreimagesExtrinsic,
+  assurances_extrinsic: AssurancesExtrinsic(config),
+});
 
 const [name, file] = process.argv.slice(2);
-const codec = CODECS[name];
+// the vectors keep each size in its own folder, tiny/ or full/
+const codec = CODECS(file?.includes("/full/") ? FULL : TINY)[name];
 if (!codec || !file) {
-  throw new Error(`usage: npm run decode <${Object.keys(CODECS).join("|")}> <file.bin>`);
+  throw new Error(`usage: npm run decode <${Object.keys(CODECS(TINY)).join("|")}> <file.bin>`);
 }
 
 const bytes = new Uint8Array(readFileSync(file));
