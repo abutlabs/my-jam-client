@@ -8,7 +8,7 @@ import type { Codec } from "../src/codec/codec.ts";
 import { decode } from "../src/codec/codec.ts";
 import { Run } from "../src/obs.ts";
 import { RefineContext, WorkItem, WorkPackage, WorkDigest, WorkReport } from "../src/work.ts";
-import { PreimagesExtrinsic, TicketsExtrinsic, AssurancesExtrinsic } from "../src/block.ts";
+import { PreimagesExtrinsic, TicketsExtrinsic, AssurancesExtrinsic, GuaranteesExtrinsic, DisputesExtrinsic, Header, Block, Extrinsic } from "../src/block.ts";
 import type { Config } from "../src/config.ts";
 import { FULL, TINY } from "../src/config.ts";
 
@@ -22,6 +22,11 @@ const CODECS = (config: Config): Record<string, Codec<unknown>> => ({
   tickets_extrinsic: TicketsExtrinsic,
   preimages_extrinsic: PreimagesExtrinsic,
   assurances_extrinsic: AssurancesExtrinsic(config),
+  guarantees_extrinsic: GuaranteesExtrinsic,
+  disputes_extrinsic: DisputesExtrinsic,
+  header: Header(config),
+  extrinsic: Extrinsic(config),
+  block: Block(config),
 });
 
 const [name, file] = process.argv.slice(2);

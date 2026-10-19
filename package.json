@@ -16,7 +16,11 @@
     "decode-work-report": "node bin/decode.ts work_report ../vectors/codec/full/work_report.bin",
     "decode-preimages": "node bin/decode.ts preimages_extrinsic ../vectors/codec/tiny/preimages_extrinsic.bin",
     "decode-assurances": "node bin/decode.ts assurances_extrinsic ../vectors/codec/tiny/assurances_extrinsic.bin",
-    "decode-assurances-full": "node bin/decode.ts assurances_extrinsic ../vectors/codec/full/assurances_extrinsic.bin"
+    "decode-assurances-full": "node bin/decode.ts assurances_extrinsic ../vectors/codec/full/assurances_extrinsic.bin",
+    "decode-guarantees": "node bin/decode.ts guarantees_extrinsic ../vectors/codec/tiny/guarantees_extrinsic.bin",
+    "decode-disputes": "node bin/decode.ts disputes_extrinsic ../vectors/codec/full/disputes_extrinsic.bin",
+    "decode-header": "node bin/decode.ts header ../vectors/codec/tiny/header_1.bin",
+    "decode-block": "node bin/decode.ts block ../vectors/codec/tiny/block.bin"
   },
   "devDependencies": {
     "@types/node": "26.6.4",

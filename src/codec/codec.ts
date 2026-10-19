@@ -129,3 +129,37 @@ export function record<F extends Fields>(fields: F): Codec<{ [K in keyof F]: Val
     },
   };
 }
+
+/** A yes or no, as one byte: 1 or 0. */
+export const bool: Codec<boolean> = {
+  encode: (w, x) => w.fixed(x ? 1n : 0n, 1),
+  decode: (r) => r.fixed(1) === 1n,
+  fromJson: (json) => json as boolean,
+};
+
+/** ¿x: 0 for nothing (null), or 1 and the value. */
+export function option<T>(item: Codec<T>): Codec<T | null> {
+  return {
+    encode: (w, x) => {
+      if (x === null) {
+        w.natural(0n);
+      } else {
+        w.natural(1n);
+        item.encode(w, x);
+      }
+    },
+    decode: (r) => (r.field("present", () => r.natural()) === 0n ? null : item.decode(r)),
+    fromJson: (json) => (json === null ? null : item.fromJson(json)),
+  };
+}
+
+/** [...]_n: exactly n items, with no length in front: everyone knows n already. */
+export function seqN<T>(item: Codec<T>, n: number): Codec<T[]> {
+  return {
+    encode: (w, items) => {
+      for (const x of items) item.encode(w, x);
+    },
+    decode: (r) => Array.from({ length: n }, (_, i) => r.field(String(i), () => item.decode(r))),
+    fromJson: (json) => (json as unknown[]).map((j) => item.fromJson(j)),
+  };
+}

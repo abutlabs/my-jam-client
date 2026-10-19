@@ -1,9 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fromHex, toHex } from "../src/bytes.ts";
-import { blob, decode, encode, hash, natural, natural32, u16, u32, u64, u8 } from "../src/codec/codec.ts";
+import { blob, decode, encode, hash, natural, natural32, u16, u32, u64, u8, record, seq, option, seqN } from "../src/codec/codec.ts";
 import type { Bytes } from "../src/bytes.ts";
-import { record, seq } from "../src/codec/codec.ts";
 import type { Value } from "../src/codec/codec.ts";
 
 test("integers encode as ℰ_l and ℰ", () => {
@@ -57,4 +56,22 @@ test("a record encodes its fields in the order written", () => {
   assert.deepEqual(decoded, p);
   const fromJson: Pair = Pair.fromJson({ slot: 1, gas: 2 });
   assert.deepEqual(fromJson, p);
+});
+
+test("an option is 0, or 1 and the value", () => {
+  const noneHex: string = toHex(encode(option(u32), null));
+  assert.equal(noneHex, "0x00");
+  const someHex: string = toHex(encode(option(u32), 7));
+  assert.equal(someHex, "0x0107000000");
+  const none: number | null = decode(option(u32), fromHex("0x00"));
+  assert.equal(none, null);
+  const some: number | null = decode(option(u32), fromHex("0x0107000000"));
+  assert.equal(some, 7);
+});
+
+test("a fixed-length sequence has no length in front", () => {
+  const fixedHex: string = toHex(encode(seqN(u16, 3), [1, 2, 3]));
+  assert.equal(fixedHex, "0x010002000300");
+  const fixedDecoded: number[] = decode(seqN(u16, 3), fromHex("0x010002000300"));
+  assert.deepEqual(fixedDecoded, [1, 2, 3]);
 });

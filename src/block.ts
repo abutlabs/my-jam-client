@@ -1,9 +1,10 @@
 // Blocks: a header, and the extrinsic, the data a block brings in from outside (GP §5).
 
 import type { Value } from "./codec/codec.ts";
-import { blob, fixedBytes, record, seq, u32, u8, hash, u16 } from "./codec/codec.ts";
-import type { Config } from "./config.ts";
 
+import { blob, fixedBytes, record, seq, u32, u8, hash, u16, bool, option, seqN } from "./codec/codec.ts";
+import type { Config } from "./config.ts";
+import { WorkReport } from "./work.ts";
 
 /** A ticket (GP §6): an anonymous entry in the draw for who authors which slot. */
 export const TicketEnvelope = record({
@@ -40,3 +41,123 @@ export type Assurance = Value<ReturnType<typeof Assurance>>;
 export function AssurancesExtrinsic(config: Config) {
   return seq(Assurance(config));
 }
+
+/** A guarantor's signature: which validator, and its Ed25519 signature. */
+export const ValidatorSignature = record({
+  validator_index: u16,
+  signature: fixedBytes(64),
+});
+export type ValidatorSignature = Value<typeof ValidatorSignature>;
+
+/** A guarantee (GP §11): a work-report, vouched for by two or three validators. */
+export const ReportGuarantee = record({
+  report: WorkReport,
+  slot: u32, // when the guarantors signed it
+  signatures: seq(ValidatorSignature),
+});
+export type ReportGuarantee = Value<typeof ReportGuarantee>;
+
+/** The guarantees in a block: at most one per core. */
+export const GuaranteesExtrinsic = seq(ReportGuarantee);
+
+/** A judgement (GP §10): one validator's vote on whether a work-report is valid. */
+export const Judgement = record({
+  vote: bool, // true: valid
+  index: u16, // which validator voted
+  signature: fixedBytes(64),
+});
+export type Judgement = Value<typeof Judgement>;
+
+/** A verdict: the votes of two thirds of the validators, plus one, on one report. */
+export const Verdict = record({
+  target: hash, // the work-report's hash
+  age: u32, // the epoch whose validators voted: this one or the one before
+  votes: seq(Judgement),
+});
+export type Verdict = Value<typeof Verdict>;
+
+/** A culprit: a guarantor who vouched for a report that turned out bad. */
+export const Culprit = record({
+  target: hash,
+  key: fixedBytes(32), // the guarantor's Ed25519 key
+  signature: fixedBytes(64), // its guarantee, as evidence
+});
+export type Culprit = Value<typeof Culprit>;
+
+/** A fault: a validator who voted against the verdict. */
+export const Fault = record({
+  target: hash,
+  vote: bool,
+  key: fixedBytes(32),
+  signature: fixedBytes(64),
+});
+export type Fault = Value<typeof Fault>;
+
+/** The disputes in a block (GP §10). */
+export const DisputesExtrinsic = record({
+  verdicts: seq(Verdict),
+  culprits: seq(Culprit),
+  faults: seq(Fault),
+});
+export type DisputesExtrinsic = Value<typeof DisputesExtrinsic>;
+
+/** A validator's two public keys, as an epoch mark lists them. */
+export const EpochMarkValidatorKeys = record({
+  bandersnatch: fixedBytes(32), // for sealing blocks and the ticket lottery
+  ed25519: fixedBytes(32), // for signing everything else
+});
+export type EpochMarkValidatorKeys = Value<typeof EpochMarkValidatorKeys>;
+
+/** The epoch mark (GP §5): at an epoch's first block, the randomness and validators ahead. */
+export const EpochMark = record({
+  entropy: hash,
+  tickets_entropy: hash,
+  validators: seq(EpochMarkValidatorKeys),
+});
+export type EpochMark = Value<typeof EpochMark>;
+
+/** A winning ticket: its id and attempt. Once a ticket has won, its proof can stay behind. */
+export const TicketBody = record({
+  id: hash,
+  attempt: u8,
+});
+export type TicketBody = Value<typeof TicketBody>;
+
+/** A block header (GP §5). */
+export function Header(config: Config) {
+  return record({
+    parent: hash, // the parent block's header hash
+    parent_state_root: hash, // the state root after the parent block
+    extrinsic_hash: hash, // commits to this block's extrinsic
+    slot: u32,
+    epoch_mark: option(EpochMark), // only in an epoch's first block
+    tickets_mark: option(seqN(TicketBody, config.epoch_length)), // when the lottery closes
+    author_index: u16, // which validator made this block
+    entropy_source: fixedBytes(96), // a VRF signature: fresh randomness for the chain
+    offenders_mark: seq(fixedBytes(32)), // Ed25519 keys of newly convicted validators
+    seal: fixedBytes(96), // the author's signature over everything above
+  });
+}
+export type Header = Value<ReturnType<typeof Header>>;
+
+
+/** A block's extrinsic (GP §4): the five parts, in Appendix C's order. */
+export function Extrinsic(config: Config) {
+  return record({
+    tickets: TicketsExtrinsic,
+    preimages: PreimagesExtrinsic,
+    guarantees: GuaranteesExtrinsic,
+    assurances: AssurancesExtrinsic(config),
+    disputes: DisputesExtrinsic,
+  });
+}
+export type Extrinsic = Value<ReturnType<typeof Extrinsic>>;
+
+/** A block (GP §4): a header and an extrinsic. */
+export function Block(config: Config) {
+  return record({
+    header: Header(config),
+    extrinsic: Extrinsic(config),
+  });
+}
+export type Block = Value<ReturnType<typeof Block>>;
