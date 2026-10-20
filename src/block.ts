@@ -2,9 +2,13 @@
 
 import type { Value } from "./codec/codec.ts";
 
-import { blob, fixedBytes, record, seq, u32, u8, hash, u16, bool, option, seqN } from "./codec/codec.ts";
+import { blob, fixedBytes, record, seq, u32, u8, hash, u16, bool, option, seqN, encode } from "./codec/codec.ts";
 import type { Config } from "./config.ts";
 import { WorkReport } from "./work.ts";
+import type { Bytes } from "./bytes.ts";
+import { blake2b256 } from "./hash.ts";
+import { concatBytes } from "./bytes.ts";
+import { verifyEd25519 } from "./signature.ts";
 
 /** A ticket (GP §6): an anonymous entry in the draw for who authors which slot. */
 export const TicketEnvelope = record({
@@ -161,3 +165,60 @@ export function Block(config: Config) {
   });
 }
 export type Block = Value<ReturnType<typeof Block>>;
+
+
+/** A header's hash (GP §5): what the next block names as its parent. */
+export function headerHash(config: Config, header: Header): Bytes {
+  return blake2b256(encode(Header(config), header));
+}
+
+/** A preimage as the extrinsic hash sees it: its requester, and the hash of its data. */
+const HashedPreimage = record({
+  requester: u32,
+  hash: hash,
+});
+
+/** A guarantee as the extrinsic hash sees it: the report's hash in place of the report. */
+const HashedGuarantee = record({
+  report: hash,
+  slot: u32,
+  signatures: seq(ValidatorSignature),
+});
+
+/**
+ * The extrinsic hash (GP §5): the hash of the five parts' hashes. Preimages and reports
+ * go in by their own hashes, so that each can be proven part of the block on its own.
+ */
+export function extrinsicHash(config: Config, extrinsic: Extrinsic): Bytes {
+  const preimages = extrinsic.preimages.map((p) => ({
+    requester: p.requester,
+    hash: blake2b256(p.blob),
+  }));
+  const guarantees = extrinsic.guarantees.map((g) => ({
+    report: blake2b256(encode(WorkReport, g.report)),
+    slot: g.slot,
+    signatures: g.signatures,
+  }));
+  const parts = [
+    encode(TicketsExtrinsic, extrinsic.tickets),
+    encode(seq(HashedPreimage), preimages),
+    encode(seq(HashedGuarantee), guarantees),
+    encode(AssurancesExtrinsic(config), extrinsic.assurances),
+    encode(DisputesExtrinsic, extrinsic.disputes),
+  ];
+  return blake2b256(concatBytes(...parts.map(blake2b256)));
+}
+
+/** X_A (GP §11): an assurance's message starts with these bytes, "$jam_available" in the GP. */
+const AVAILABLE = new TextEncoder().encode("jam_available");
+
+/** What an assurance's validator signs (GP §11): X_A, then the hash of anchor and bitfield. */
+export function assuranceMessage(assurance: Assurance): Bytes {
+  return concatBytes(AVAILABLE, blake2b256(concatBytes(assurance.anchor, assurance.bitfield)));
+}
+
+/** Is an assurance signed by the validator it names? `keys`: the validators' Ed25519 keys. */
+export function assuranceSigned(keys: Bytes[], assurance: Assurance): boolean {
+  const key = keys[assurance.validator_index];
+  return verifyEd25519(key, assuranceMessage(assurance), assurance.signature);
+}

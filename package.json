@@ -20,7 +20,14 @@
     "decode-guarantees": "node bin/decode.ts guarantees_extrinsic ../vectors/codec/tiny/guarantees_extrinsic.bin",
     "decode-disputes": "node bin/decode.ts disputes_extrinsic ../vectors/codec/full/disputes_extrinsic.bin",
     "decode-header": "node bin/decode.ts header ../vectors/codec/tiny/header_1.bin",
-    "decode-block": "node bin/decode.ts block ../vectors/codec/tiny/block.bin"
+    "decode-block": "node bin/decode.ts block ../vectors/codec/tiny/block.bin",
+    "chain": "node bin/chain.ts",
+    "assurances": "node bin/assurances.ts",
+    "assurances-bad-signature": "node bin/assurances.ts ../vectors/stf/assurances/tiny/assurances_with_bad_signature-1.json"
+  },
+  "dependencies": {
+    "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0"
   },
   "devDependencies": {
     "@types/node": "26.6.4",
