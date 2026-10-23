@@ -8,7 +8,10 @@ import { checkCodecVector } from "./vectors.ts";
 import type { Config } from "../src/config.ts";
 import { TicketsExtrinsic, PreimagesExtrinsic, AssurancesExtrinsic, GuaranteesExtrinsic, DisputesExtrinsic, Header, Extrinsic, Block } from "../src/block.ts";
 import { FULL, TINY } from "../src/config.ts";
-
+import { fromHex, toHex } from "../src/bytes.ts";
+import type { KeyValue } from "../src/trie.ts";
+import { stateRoot } from "../src/trie.ts";
+import { vectorJson } from "./vectors.ts";
 
 /** The size a vector is written for, from its folder: full or tiny. */
 const configOf = (name: string): Config => (name.includes("/full/") ? FULL : TINY);
@@ -20,6 +23,7 @@ export type Family = { folders: string[]; check: (name: string) => void };
 /** Every family your client runs so far. */
 export const FAMILIES: Family[] = [
   { folders: ["codec/tiny", "codec/full"], check: checkCodec },
+  { folders: ["trie"], check: checkTrie },
 ];
 
 /** The codecs for the codec vectors, by the vectors' names for the structures. A codec
@@ -49,4 +53,17 @@ function checkCodec(name: string) {
   assert.ok(codec, `no codec for ${structure} yet`);
   const sized = typeof codec === "function" ? codec(configOf(name)) : codec;
   checkCodecVector(sized, name.replace(".json", ""));
+}
+
+/** The trie vector: each set of entries has the vector's root. Its keys are 32 bytes, from
+ * when the Gray Paper's keys were; the trie reads the first 31. */
+export function checkTrie(name: string) {
+  const cases = vectorJson(name) as { input: Record<string, string>; output: string }[];
+  for (const { input, output } of cases) {
+    const entries: KeyValue[] = Object.entries(input).map(([key, value]) => ({
+      key: fromHex(`0x${key}`).subarray(0, 31),
+      value: fromHex(`0x${value}`),
+    }));
+    assert.equal(toHex(stateRoot(entries)), `0x${output}`);
+  }
 }

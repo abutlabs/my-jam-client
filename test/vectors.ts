@@ -9,6 +9,7 @@ import { decode, encode } from "../src/codec/codec.ts";
 import { test } from "node:test";
 import type { Config } from "../src/config.ts";
 import { FULL, TINY } from "../src/config.ts";
+import { fromHex } from "../src/bytes.ts";
 
 /** The official test vectors' folder: vectors/, at the repo root. */
 export const VECTORS = fileURLToPath(new URL("../../vectors/", import.meta.url));
@@ -45,4 +46,19 @@ export function testCodecVector(
     const sized = typeof codec === "function" ? codec(config) : codec;
     test(`${name} (${config.name})`, () => checkCodecVector(sized, `codec/${config.name}/${name}`));
   }
+}
+
+/** The state before block n of a tiny trace, the state root its header promises, the block. */
+export function traceState(family: string, n: number) {
+  const name = `traces/${family}/${String(n).padStart(8, "0")}.json`;
+  const trace = vectorJson(name) as {
+    pre_state: { keyvals: { key: string; value: string }[] };
+    block: { header: { parent_state_root: string } };
+  };
+  const entries = trace.pre_state.keyvals.map((e) => ({
+    key: fromHex(e.key),
+    value: fromHex(e.value),
+  }));
+  return { entries, promised: trace.block.header.parent_state_root, block: trace.block };
+  //return { entries, promised: trace.block.header.parent_state_root };
 }

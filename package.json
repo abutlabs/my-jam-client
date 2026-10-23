@@ -23,7 +23,11 @@
     "decode-block": "node bin/decode.ts block ../vectors/codec/tiny/block.bin",
     "chain": "node bin/chain.ts",
     "assurances": "node bin/assurances.ts",
-    "assurances-bad-signature": "node bin/assurances.ts ../vectors/stf/assurances/tiny/assurances_with_bad_signature-1.json"
+    "assurances-bad-signature": "node bin/assurances.ts ../vectors/stf/assurances/tiny/assurances_with_bad_signature-1.json",
+    "state": "node bin/state.ts",
+    "state-fallback": "node bin/state.ts ../vectors/traces/fallback/00000001.json",
+    "read-state": "node bin/read-state.ts",
+    "read-state-safrole": "node bin/read-state.ts ../vectors/traces/safrole/00000012.json"
   },
   "dependencies": {
     "@noble/curves": "2.4.0",
