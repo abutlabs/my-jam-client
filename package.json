@@ -27,7 +27,8 @@
     "state": "node bin/state.ts",
     "state-fallback": "node bin/state.ts ../vectors/traces/fallback/00000001.json",
     "read-state": "node bin/read-state.ts",
-    "read-state-safrole": "node bin/read-state.ts ../vectors/traces/safrole/00000012.json"
+    "read-state-safrole": "node bin/read-state.ts ../vectors/traces/safrole/00000012.json",
+    "epochs": "node bin/epochs.ts"
   },
   "dependencies": {
     "@noble/curves": "2.4.0",
