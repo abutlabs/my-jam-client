@@ -28,7 +28,13 @@
     "state-fallback": "node bin/state.ts ../vectors/traces/fallback/00000001.json",
     "read-state": "node bin/read-state.ts",
     "read-state-safrole": "node bin/read-state.ts ../vectors/traces/safrole/00000012.json",
-    "epochs": "node bin/epochs.ts"
+    "epochs": "node bin/epochs.ts",
+    "shuffle": "node bin/shuffle.ts",
+    "shuffle-eight": "node bin/shuffle.ts 8 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "entropy": "node bin/entropy.ts",
+    "entropy-new-epoch": "node bin/entropy.ts ../vectors/stf/safrole/tiny/enact-epoch-change-with-no-tickets-4.json",
+    "rotation": "node bin/rotation.ts",
+    "rotation-new-epoch": "node bin/rotation.ts ../vectors/stf/safrole/tiny/enact-epoch-change-with-padding-1.json"
   },
   "dependencies": {
     "@noble/curves": "2.4.0",

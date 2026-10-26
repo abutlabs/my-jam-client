@@ -12,6 +12,7 @@ import { fromHex, toHex } from "../src/bytes.ts";
 import type { KeyValue } from "../src/trie.ts";
 import { stateRoot } from "../src/trie.ts";
 import { vectorJson } from "./vectors.ts";
+import { shuffleWithHash } from "../src/shuffle.ts";
 
 /** The size a vector is written for, from its folder: full or tiny. */
 const configOf = (name: string): Config => (name.includes("/full/") ? FULL : TINY);
@@ -24,6 +25,7 @@ export type Family = { folders: string[]; check: (name: string) => void };
 export const FAMILIES: Family[] = [
   { folders: ["codec/tiny", "codec/full"], check: checkCodec },
   { folders: ["trie"], check: checkTrie },
+  { folders: ["shuffle"], check: checkShuffle },
 ];
 
 /** The codecs for the codec vectors, by the vectors' names for the structures. A codec
@@ -65,5 +67,14 @@ export function checkTrie(name: string) {
       value: fromHex(`0x${value}`),
     }));
     assert.equal(toHex(stateRoot(entries)), `0x${output}`);
+  }
+}
+
+/** The shuffle vector: 0, 1, 2… shuffled by each case's hash, in the vector's order. */
+export function checkShuffle(name: string) {
+  const cases = vectorJson(name) as { input: number; entropy: string; output: number[] }[];
+  for (const { input, entropy, output } of cases) {
+    const items: number[] = Array.from({ length: input }, (_, i) => i);
+    assert.deepEqual(shuffleWithHash(items, fromHex(`0x${entropy}`)), output);
   }
 }

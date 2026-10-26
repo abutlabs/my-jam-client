@@ -1,7 +1,7 @@
 // The official test vectors, in vectors/ at the repo root (npm run vectors there).
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Bytes } from "../src/bytes.ts";
 import type { Codec } from "../src/codec/codec.ts";
@@ -61,4 +61,10 @@ export function traceState(family: string, n: number) {
   }));
   return { entries, promised: trace.block.header.parent_state_root, block: trace.block };
   //return { entries, promised: trace.block.header.parent_state_root };
+}
+
+/** The JSON vectors in a folder of vectors/, by name, such as "stf/safrole/tiny". */
+export function vectorFiles(folder: string): string[] {
+  const files = readdirSync(VECTORS + folder).filter((f) => f.endsWith(".json"));
+  return files.map((f) => `${folder}/${f}`);
 }
