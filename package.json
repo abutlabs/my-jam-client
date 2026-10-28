@@ -34,7 +34,13 @@
     "entropy": "node bin/entropy.ts",
     "entropy-new-epoch": "node bin/entropy.ts ../vectors/stf/safrole/tiny/enact-epoch-change-with-no-tickets-4.json",
     "rotation": "node bin/rotation.ts",
-    "rotation-new-epoch": "node bin/rotation.ts ../vectors/stf/safrole/tiny/enact-epoch-change-with-padding-1.json"
+    "rotation-new-epoch": "node bin/rotation.ts ../vectors/stf/safrole/tiny/enact-epoch-change-with-padding-1.json",
+    "sealers": "node bin/sealers.ts",
+    "sealers-no-tickets": "node bin/sealers.ts ../vectors/stf/safrole/tiny/enact-epoch-change-with-no-tickets-4.json",
+    "lottery": "node bin/lottery.ts",
+    "lottery-closes": "node bin/lottery.ts ../vectors/stf/safrole/tiny/publish-tickets-with-mark-4.json",
+    "safrole": "node bin/safrole.ts",
+    "safrole-new-epoch": "node bin/safrole.ts ../vectors/stf/safrole/tiny/enact-epoch-change-with-padding-1.json"
   },
   "dependencies": {
     "@noble/curves": "2.4.0",
