@@ -40,7 +40,8 @@
     "lottery": "node bin/lottery.ts",
     "lottery-closes": "node bin/lottery.ts ../vectors/stf/safrole/tiny/publish-tickets-with-mark-4.json",
     "safrole": "node bin/safrole.ts",
-    "safrole-new-epoch": "node bin/safrole.ts ../vectors/stf/safrole/tiny/enact-epoch-change-with-padding-1.json"
+    "safrole-new-epoch": "node bin/safrole.ts ../vectors/stf/safrole/tiny/enact-epoch-change-with-padding-1.json",
+    "vrf": "node bin/vrf.ts"
   },
   "dependencies": {
     "@noble/curves": "2.4.0",
