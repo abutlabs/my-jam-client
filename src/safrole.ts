@@ -8,11 +8,11 @@ import { blake2b256 } from "./hash.ts";
 import type { Config } from "./config.ts";
 import { decodeFixed, encodeFixed } from "./codec/numbers.ts";
 import { epochOf, phaseOf } from "./epoch.ts";
-import { TicketBody } from "./block.ts";
+import { TicketBody, Header } from "./block.ts";
 import type { EpochMark, TicketEnvelope } from "./block.ts";
 import { ValidatorKey } from "./state.ts";
-import { vrfOutput } from "./bandersnatch.ts";
-import { ringRoot, ringProofsHold } from "./bandersnatch.ts";
+import { vrfOutput, ringRoot, ringProofsHold, checkSignature } from "./bandersnatch.ts";
+import { encode } from "./codec/codec.ts";
 
 export function nextEntropy(entropy: Bytes[], vrfOutput: Bytes, newEpoch: boolean): Bytes[] {
   const accumulator = blake2b256(concatBytes(entropy[0], vrfOutput));
@@ -253,3 +253,40 @@ const TICKET_SEAL = new TextEncoder().encode("jam_ticket_seal");
 export function ticketInput(eta2: Bytes, attempt: number): Bytes {
   return concatBytes(TICKET_SEAL, eta2, Uint8Array.of(attempt));
 }
+
+/**
+ * Why a header's seal or entropy source is wrong (GP §6), or null if both check out. The
+ * author's Bandersnatch key (κ′[H_I]) must have signed the header without its seal, for the
+ * context of its slot's entry in γ′_S: a winning ticket (X_T ⌢ η′₃ ⌢ its attempt, and the
+ * seal's output must be that ticket's id) or a fallback key (X_F ⌢ η′₃, and it must be the
+ * author's). The entropy source must be the author's signature on X_E ⌢ the seal's output.
+ */
+export function sealError(
+  config: Config,
+  header: Header,
+  author: Bytes, // κ′[H_I]: the author's Bandersnatch key
+  sealers: Sealers, // γ′_S
+  eta3: Bytes, // η′₃
+): string | null {
+  const encoded = encode(Header(config), header);
+  const unsigned = encoded.subarray(0, encoded.length - 96); // ℰ_U(H): all but the seal
+  const phase = phaseOf(config, header.slot);
+  let output: Bytes | null;
+  if ("tickets" in sealers) {
+    const ticket = sealers.tickets[phase];
+    const context = concatBytes(TICKET_SEAL, eta3, Uint8Array.of(ticket.attempt));
+    output = checkSignature(author, header.seal, context, unsigned);
+    if (!output || toHex(output) !== toHex(ticket.id)) return "bad_seal";
+  } else {
+    if (toHex(sealers.keys[phase]) !== toHex(author)) return "bad_seal"; // not this slot's
+    output = checkSignature(author, header.seal, concatBytes(FALLBACK_SEAL, eta3), unsigned);
+    if (!output) return "bad_seal";
+  }
+  const context = concatBytes(ENTROPY, output);
+  const source = checkSignature(author, header.entropy_source, context, new Uint8Array(0));
+  return source ? null : "bad_entropy_source";
+}
+
+/** X_F and X_E (GP §6): the contexts of a fallback seal and of the entropy source. */
+const FALLBACK_SEAL = new TextEncoder().encode("jam_fallback_seal");
+const ENTROPY = new TextEncoder().encode("jam_entropy");

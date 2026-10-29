@@ -5,12 +5,12 @@ import type { Config } from "../src/config.ts";
 import { FULL, TINY } from "../src/config.ts";
 import { epochOf } from "../src/epoch.ts";
 import type { ValidatorSets, Safrole } from "../src/safrole.ts";
-import { nextEntropy, rotateValidators, fallbackKeys, outsideIn, sealedByTickets, ticketsMark, safroleFromJson, safroleStep, safroleError } from "../src/safrole.ts";
-import { ValidatorKey } from "../src/state.ts";
-import { vectorFiles, vectorJson } from "./vectors.ts";
+import { nextEntropy, rotateValidators, fallbackKeys, outsideIn, sealedByTickets, ticketsMark, safroleFromJson, safroleStep, safroleError, ringRootOf, sealError } from "../src/safrole.ts";
+import { ValidatorKey, readEntropy, readSafroleState, readValidators } from "../src/state.ts";
+import { vectorFiles, vectorJson, traceState } from "./vectors.ts";
 import type { Bytes } from "../src/bytes.ts";
-import { TicketBody, EpochMark, TicketEnvelope } from "../src/block.ts";
-import { ringRootOf } from "../src/safrole.ts";
+import { TicketBody, EpochMark, TicketEnvelope, Block } from "../src/block.ts";
+import type { Header } from "../src/block.ts";
 
 
 /** The parts of a safrole vector's state the lessons use so far. */
@@ -242,4 +242,43 @@ test("a forged ring proof: bad_ticket_proof", () => {
     const error: string | null = safroleError(config, before, vector.input.slot, entered);
     assert.equal(error, "bad_ticket_proof", name);
   }
+});
+
+/** Block n of a tiny trace, and what its seal is checked against: κ′, γ′_S and η′₃. */
+function sealed(family: string, n: number) {
+  const { block } = traceState(family, n);
+  const header: Header = Block(TINY).fromJson(block).header;
+  const after = traceState(family, n + 1).entries; // the state after block n
+  const author: Bytes = readValidators(after)[header.author_index].bandersnatch;
+  const { sealers } = readSafroleState(TINY, after);
+  return { header, author, sealers, eta3: readEntropy(after)[3] };
+}
+
+test("the seal and entropy source of 198 real blocks, 36 of them sealed by tickets", () => {
+  let tickets = 0;
+  for (const family of ["fallback", "safrole"]) {
+    for (let n = 1; n < 100; n++) {
+      const { header, author, sealers, eta3 } = sealed(family, n);
+      const error: string | null = sealError(TINY, header, author, sealers, eta3);
+      assert.equal(error, null, `${family} block ${n}`);
+      if ("tickets" in sealers) tickets++;
+    }
+  }
+  assert.equal(tickets, 36);
+});
+
+test("a forged seal, or a stranger's: refused; and the seal guards the entropy source", () => {
+  const { header, author, sealers, eta3 } = sealed("safrole", 5);
+  const seal: Bytes = header.seal.slice();
+  seal[40] ^= 1; // one bit of the signature's proof flipped
+  const forged: string | null = sealError(TINY, { ...header, seal }, author, sealers, eta3);
+  assert.equal(forged, "bad_seal");
+  const stranger: Bytes = sealed("safrole", 6).author; // another validator's key
+  const notTheAuthor: string | null = sealError(TINY, header, stranger, sealers, eta3);
+  assert.equal(notTheAuthor, "bad_seal");
+  const source: Bytes = header.entropy_source.slice();
+  source[40] ^= 1; // the seal signs the header, entropy source and all
+  const changed: Header = { ...header, entropy_source: source };
+  const badSource: string | null = sealError(TINY, changed, author, sealers, eta3);
+  assert.equal(badSource, "bad_seal");
 });

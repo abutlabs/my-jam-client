@@ -45,7 +45,8 @@
     "safrole-tickets-2": "node bin/safrole.ts ../vectors/stf/safrole/tiny/publish-tickets-no-mark-2.json",
     "safrole-tickets-4": "node bin/safrole.ts ../vectors/stf/safrole/tiny/publish-tickets-no-mark-4.json",
     "safrole-no-tickets": "node bin/safrole.ts ../vectors/stf/safrole/tiny/enact-epoch-change-with-no-tickets-4.json",
-    "safrole-tickets-5": "node bin/safrole.ts ../vectors/stf/safrole/tiny/publish-tickets-no-mark-5.json"
+    "safrole-tickets-5": "node bin/safrole.ts ../vectors/stf/safrole/tiny/publish-tickets-no-mark-5.json",
+    "seals": "node bin/seals.ts"
   },
   "dependencies": {
     "@noble/curves": "2.4.0",

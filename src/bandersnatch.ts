@@ -47,3 +47,12 @@ export function ringProofsHold(root: Bytes, size: number, proofs: RingProof[]): 
   const data = concatBytes(...proofs.flatMap((p) => [p.proof, p.input]));
   return library.batchVerifyTickets(size, root, data, proofs[0].input.length)[0] === 0;
 }
+
+/**
+ * Checks a Bandersnatch VRF signature (GP App. G): made with `key`, for `context` (the
+ * VRF's input), on `message`. Its output, 𝒴, if it checks out; null if it doesn't.
+ */
+export function checkSignature(key: Bytes, signature: Bytes, context: Bytes, message: Bytes) {
+  const result = library.verifySeal(key, signature, context, message);
+  return result[0] === 0 ? Uint8Array.from(result.subarray(1, 33)) : null;
+}

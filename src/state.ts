@@ -7,6 +7,9 @@ import { blake2b256 } from "./hash.ts";
 import type { Codec, Value } from "./codec/codec.ts";
 import { decode, fixedBytes, hash, record, seq, seqN, u32 } from "./codec/codec.ts";
 import type { KeyValue } from "./trie.ts";
+import type { Config } from "./config.ts";
+import { TicketBody } from "./block.ts";
+import type { Sealers } from "./safrole.ts";
 
 /** C(i): the key of state component i. The byte i, then 30 zeros. */
 export function componentKey(i: number): Bytes {
@@ -77,4 +80,41 @@ export function readEntropy(entries: KeyValue[]): Bytes[] {
 /** κ, C(8): the validators of this epoch. */
 export function readValidators(entries: KeyValue[]): ValidatorKey[] {
   return component(entries, 8, seq(ValidatorKey));
+}
+
+/** γ_S as the state writes it (GP App. D): 0, then E tickets; or 1, then E keys. */
+export function SealersCodec(config: Config): Codec<Sealers> {
+  const tickets = seqN(TicketBody, config.epoch_length);
+  const keys = seqN(hash, config.epoch_length);
+  return {
+    encode: (w, sealers) => {
+      w.natural("tickets" in sealers ? 0n : 1n);
+      if ("tickets" in sealers) tickets.encode(w, sealers.tickets);
+      else keys.encode(w, sealers.keys);
+    },
+    decode: (r) =>
+      r.field("kind", () => r.natural()) === 0n
+        ? { tickets: tickets.decode(r) }
+        : { keys: keys.decode(r) },
+    fromJson: (json) => {
+      const { tickets: t, keys: k } = json as { tickets?: unknown[]; keys?: unknown[] };
+      return t ? { tickets: tickets.fromJson(t) } : { keys: keys.fromJson(k) };
+    },
+  };
+}
+
+/** γ, C(4) (GP App. D): Safrole's own state, γ_P, γ_Z, γ_S and γ_A. */
+export function SafroleState(config: Config) {
+  return record({
+    pending: seq(ValidatorKey), // γ_P
+    ring_root: fixedBytes(144), // γ_Z
+    sealers: SealersCodec(config), // γ_S
+    accumulator: seq(TicketBody), // γ_A
+  });
+}
+export type SafroleState = Value<ReturnType<typeof SafroleState>>;
+
+/** γ, C(4): Safrole's own part of the state. */
+export function readSafroleState(config: Config, entries: KeyValue[]): SafroleState {
+  return component(entries, 4, SafroleState(config));
 }
