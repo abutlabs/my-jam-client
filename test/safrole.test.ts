@@ -5,11 +5,13 @@ import type { Config } from "../src/config.ts";
 import { FULL, TINY } from "../src/config.ts";
 import { epochOf } from "../src/epoch.ts";
 import type { ValidatorSets, Safrole } from "../src/safrole.ts";
-import { nextEntropy, rotateValidators, fallbackKeys, outsideIn, sealedByTickets, ticketsMark, safroleFromJson, safroleStep } from "../src/safrole.ts";
+import { nextEntropy, rotateValidators, fallbackKeys, outsideIn, sealedByTickets, ticketsMark, safroleFromJson, safroleStep, safroleError } from "../src/safrole.ts";
 import { ValidatorKey } from "../src/state.ts";
 import { vectorFiles, vectorJson } from "./vectors.ts";
 import type { Bytes } from "../src/bytes.ts";
-import { TicketBody, EpochMark } from "../src/block.ts";
+import { TicketBody, EpochMark, TicketEnvelope } from "../src/block.ts";
+import { ringRootOf } from "../src/safrole.ts";
+
 
 /** The parts of a safrole vector's state the lessons use so far. */
 type SafroleState = {
@@ -22,6 +24,7 @@ type SafroleState = {
   post_offenders: string[];
   gamma_a: unknown[]; // γ_A: the lottery's best tickets so far
   gamma_s: { keys?: string[]; tickets?: unknown[] }; // γ_S: the sealers, keys or tickets
+  gamma_z: string; // γ_Z: the ring root of γ_P
 };
 
 /** A safrole test vector: the parts of it the lessons use so far. */
@@ -179,4 +182,64 @@ test("a whole step of Safrole: the state and both marks, for each block without 
     steps++;
   }
   assert.equal(steps, 22); // 10 tiny, 12 full
+});
+
+test("blocks with tickets: each joins the lottery, which keeps the E lowest ids", () => {
+  let steps = 0;
+  for (const { config, name, vector } of acceptedVectors()) {
+    const { input, pre_state, post_state } = vector;
+    if (input.extrinsic.length === 0) continue; // the test above has those
+    const entered: TicketEnvelope[] = input.extrinsic.map((t) => TicketEnvelope.fromJson(t));
+    const before: Safrole = safroleFromJson(pre_state);
+    const error: string | null = safroleError(config, before, input.slot, entered);
+    assert.equal(error, null, name);
+    const offenders: Bytes[] = pre_state.post_offenders.map(fromHex);
+    const vrfOutput: Bytes = fromHex(input.entropy);
+    const step = safroleStep(config, before, input.slot, vrfOutput, offenders, entered);
+    const after: Safrole = safroleFromJson(post_state);
+    assert.deepEqual(step.after, after, name);
+    steps++;
+  }
+  assert.equal(steps, 11); // 5 tiny, 6 full
+});
+
+test("the blocks Safrole refuses, each for the vector's reason", () => {
+  let refused = 0;
+  for (const config of [TINY, FULL]) {
+    for (const name of vectorFiles(`stf/safrole/${config.name}`)) {
+      const vector = vectorJson(name) as SafroleVector;
+      const reason = vector.output.err;
+      if (!reason || reason === "bad_ticket_proof") continue; // proofs: lesson 8.8
+      const before: Safrole = safroleFromJson(vector.pre_state);
+      const entered = vector.input.extrinsic.map((t) => TicketEnvelope.fromJson(t));
+      const error: string | null = safroleError(config, before, vector.input.slot, entered);
+      assert.equal(error, reason, name);
+      refused++;
+    }
+  }
+  assert.equal(refused, 11); // tiny and full: bad_slot, unexpected_ticket, and three more
+});
+
+test("γ′_Z: at a new epoch, the ring root of the new pending validators", () => {
+  let roots = 0;
+  for (const { config, name, vector, newEpoch } of acceptedVectors()) {
+    if (!newEpoch) continue;
+    const offenders: Bytes[] = vector.pre_state.post_offenders.map(fromHex);
+    const { pending }: ValidatorSets = rotateValidators(validatorSets(vector.pre_state), offenders);
+    const root: string = toHex(ringRootOf(config, pending));
+    assert.equal(root, vector.post_state.gamma_z, name);
+    if (vector.post_state.gamma_z !== vector.pre_state.gamma_z) roots++;
+  }
+  assert.equal(roots, 13); // 6 tiny, 7 full: a new root, whenever the keys changed
+});
+
+test("a forged ring proof: bad_ticket_proof", () => {
+  for (const config of [TINY, FULL]) {
+    const name = `stf/safrole/${config.name}/publish-tickets-no-mark-5.json`;
+    const vector = vectorJson(name) as SafroleVector;
+    const before: Safrole = safroleFromJson(vector.pre_state);
+    const entered = vector.input.extrinsic.map((t) => TicketEnvelope.fromJson(t));
+    const error: string | null = safroleError(config, before, vector.input.slot, entered);
+    assert.equal(error, "bad_ticket_proof", name);
+  }
 });

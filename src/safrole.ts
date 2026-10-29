@@ -9,8 +9,10 @@ import type { Config } from "./config.ts";
 import { decodeFixed, encodeFixed } from "./codec/numbers.ts";
 import { epochOf, phaseOf } from "./epoch.ts";
 import { TicketBody } from "./block.ts";
-import type { EpochMark } from "./block.ts";
+import type { EpochMark, TicketEnvelope } from "./block.ts";
 import { ValidatorKey } from "./state.ts";
+import { vrfOutput } from "./bandersnatch.ts";
+import { ringRoot, ringProofsHold } from "./bandersnatch.ts";
 
 export function nextEntropy(entropy: Bytes[], vrfOutput: Bytes, newEpoch: boolean): Bytes[] {
   const accumulator = blake2b256(concatBytes(entropy[0], vrfOutput));
@@ -120,11 +122,13 @@ export type Safrole = {
   validators: ValidatorSets; // ι, γ_P, κ, λ
   accumulator: TicketBody[]; // γ_A: the lottery's best tickets so far
   sealers: Sealers; // γ_S
+  ringRoot: Bytes; // γ_Z: the ring root of γ_P's Bandersnatch keys
 };
 
 /**
- * One block of Safrole (GP §6), for a block that brings no tickets: the state after it,
- * and the two marks its header must carry.
+ * One block of Safrole (GP §6): the state after it, and the two marks its header must
+ * carry. Its tickets join the lottery: each one's id is its proof's VRF output, and the
+ * lottery keeps the E lowest ids, old and new (none old at a new epoch).
  */
 export function safroleStep(
   config: Config,
@@ -132,6 +136,7 @@ export function safroleStep(
   slot: number, // the block's slot, τ′
   vrfOutput: Bytes, // Y(H_v), from the block's entropy source
   offenders: Bytes[], // ψ′_O: Ed25519 keys convicted in disputes
+  tickets: TicketEnvelope[] = [], // the block's tickets extrinsic, already checked
 ) {
   const newEpoch = epochOf(config, slot) > epochOf(config, before.time);
   const entropy = nextEntropy(before.entropy, vrfOutput, newEpoch);
@@ -142,20 +147,18 @@ export function safroleStep(
   } else if (newEpoch) {
     sealers = { keys: fallbackKeys(config, entropy[2], validators.active) };
   }
-  const after: Safrole = {
-    time: slot,
-    entropy,
-    validators,
-    accumulator: newEpoch ? [] : before.accumulator, // a new epoch starts a new lottery
-    sealers,
-  };
+  const entered = tickets.map((t) => ({ id: ticketId(t), attempt: t.attempt }));
+  const kept = newEpoch ? [] : before.accumulator; // a new epoch starts a new lottery
+  const accumulator = [...kept, ...entered].sort(byId).slice(0, config.epoch_length);
+  const ring = newEpoch ? ringRootOf(config, validators.pending) : before.ringRoot; // γ′_Z
+  const after: Safrole = { time: slot, entropy, validators, accumulator, sealers, ringRoot: ring };
   // the epoch mark: η₀ and η₁ as they were, and γ′_P, the validators after next, by two keys
   const keys = validators.pending.map(({ bandersnatch, ed25519 }) => ({ bandersnatch, ed25519 }));
   const epochMark: EpochMark | null = newEpoch
     ? { entropy: before.entropy[0], tickets_entropy: before.entropy[1], validators: keys }
     : null;
-  const tickets = ticketsMark(config, before.time, slot, before.accumulator);
-  return { after, epochMark, ticketsMark: tickets };
+  const marked = ticketsMark(config, before.time, slot, before.accumulator);
+  return { after, epochMark, ticketsMark: marked };
 }
 
 /** Safrole's state as the test vectors write it, under the Gray Paper's Greek names. */
@@ -168,6 +171,7 @@ export type SafroleJson = {
   lambda: unknown[];
   gamma_a: unknown[];
   gamma_s: { keys?: string[]; tickets?: unknown[] };
+  gamma_z: string;
 };
 
 /** Safrole's state, from the vectors' JSON. */
@@ -186,5 +190,66 @@ export function safroleFromJson(json: SafroleJson): Safrole {
     },
     accumulator: tickets(json.gamma_a),
     sealers: winners ? { tickets: tickets(winners) } : { keys: (fallback ?? []).map(fromHex) },
+    ringRoot: fromHex(json.gamma_z),
   };
+}
+
+/**
+ * Why Safrole refuses a block (GP §6), or null if it doesn't: its slot isn't after the last
+ * block's (bad_slot); it brings tickets once the lottery has closed, or more than K
+ * (unexpected_ticket); a ticket's attempt is n or more (bad_ticket_attempt); the ids don't
+ * go strictly up (bad_ticket_order); one is in the lottery already (duplicate_ticket); or
+ * a ring proof doesn't check out against γ′_Z (bad_ticket_proof).
+ */
+export function safroleError(
+  config: Config,
+  before: Safrole,
+  slot: number,
+  tickets: TicketEnvelope[],
+  offenders: Bytes[] = [], // ψ′_O, for γ′_P at a new epoch
+): string | null {
+  if (slot <= before.time) return "bad_slot";
+  const open = phaseOf(config, slot) < config.epoch_tail_start;
+  if (tickets.length > (open ? config.max_tickets_per_extrinsic : 0)) return "unexpected_ticket";
+  if (tickets.length === 0) return null;
+  const newEpoch = epochOf(config, slot) > epochOf(config, before.time);
+  const { pending } = newEpoch ? rotateValidators(before.validators, offenders) : before.validators;
+  const n = attemptsAllowed(config, pending.length); // γ′_P's size
+  if (tickets.some((t) => t.attempt >= n)) return "bad_ticket_attempt";
+  const ids = tickets.map((t) => toHex(ticketId(t)));
+  if (ids.some((id, i) => i > 0 && id <= ids[i - 1])) return "bad_ticket_order";
+  const held = new Set(before.accumulator.map((t) => toHex(t.id)));
+  if (ids.some((id) => held.has(id))) return "duplicate_ticket";
+  const ring = newEpoch ? ringRootOf(config, pending) : before.ringRoot; // γ′_Z
+  const eta2 = newEpoch ? before.entropy[1] : before.entropy[2]; // η′₂
+  const proofs = tickets.map((t) => ({ proof: t.signature, input: ticketInput(eta2, t.attempt) }));
+  if (!ringProofsHold(ring, config.validators_count, proofs)) return "bad_ticket_proof";
+  return null;
+}
+
+/** A ticket's id (GP §6): the VRF output of its proof. */
+export function ticketId(ticket: TicketEnvelope): Bytes {
+  return vrfOutput(ticket.signature);
+}
+
+/** Orders tickets by id, the lowest (the best) first. */
+const byId = (x: TicketBody, y: TicketBody) => (toHex(x.id) < toHex(y.id) ? -1 : 1);
+
+/** n (GP §6): the tickets each validator may enter, ⌈2E / |γ′_P|⌉: fewer validators, more each. */
+export function attemptsAllowed(config: Config, validators: number): number {
+  return Math.ceil((2 * config.epoch_length) / validators);
+}
+
+/** γ_Z (GP §6): the ring root of some validators' Bandersnatch keys, in a ring as big as
+ * the chain's validator set. */
+export function ringRootOf(config: Config, validators: ValidatorKey[]): Bytes {
+  return ringRoot(validators.map((v) => v.bandersnatch), config.validators_count);
+}
+
+/** X_T (GP §6): the context of a ticket's ring proof, "$jam_ticket_seal" without the $. */
+const TICKET_SEAL = new TextEncoder().encode("jam_ticket_seal");
+
+/** What a ticket's ring proof signs: X_T ⌢ η′₂ ⌢ its attempt, one byte. */
+export function ticketInput(eta2: Bytes, attempt: number): Bytes {
+  return concatBytes(TICKET_SEAL, eta2, Uint8Array.of(attempt));
 }
