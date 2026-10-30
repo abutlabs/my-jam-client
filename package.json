@@ -46,7 +46,14 @@
     "safrole-tickets-4": "node bin/safrole.ts ../vectors/stf/safrole/tiny/publish-tickets-no-mark-4.json",
     "safrole-no-tickets": "node bin/safrole.ts ../vectors/stf/safrole/tiny/enact-epoch-change-with-no-tickets-4.json",
     "safrole-tickets-5": "node bin/safrole.ts ../vectors/stf/safrole/tiny/publish-tickets-no-mark-5.json",
-    "seals": "node bin/seals.ts"
+    "seals": "node bin/seals.ts",
+    "belt": "node bin/belt.ts",
+    "history": "node bin/history.ts",
+    "history-preimages": "node bin/history.ts ../vectors/traces/preimages/00000050.json",
+    "verdicts": "node bin/verdicts.ts",
+    "verdicts-progress": "node bin/verdicts.ts ../vectors/stf/disputes/tiny/progress_with_verdicts-4.json",
+    "offenders": "node bin/offenders.ts",
+    "offenders-progress": "node bin/offenders.ts ../vectors/stf/disputes/tiny/progress_with_verdicts-4.json"
   },
   "dependencies": {
     "@noble/curves": "2.4.0",

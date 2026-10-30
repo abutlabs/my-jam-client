@@ -10,6 +10,7 @@ import type { KeyValue } from "./trie.ts";
 import type { Config } from "./config.ts";
 import { TicketBody } from "./block.ts";
 import type { Sealers } from "./safrole.ts";
+import { Recent } from "./history.ts";
 
 /** C(i): the key of state component i. The byte i, then 30 zeros. */
 export function componentKey(i: number): Bytes {
@@ -117,4 +118,9 @@ export type SafroleState = Value<ReturnType<typeof SafroleState>>;
 /** γ, C(4): Safrole's own part of the state. */
 export function readSafroleState(config: Config, entries: KeyValue[]): SafroleState {
   return component(entries, 4, SafroleState(config));
+}
+
+/** β, C(3): the recent blocks, and the belt. */
+export function readRecent(entries: KeyValue[]): Recent {
+  return component(entries, 3, Recent);
 }
