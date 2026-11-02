@@ -53,7 +53,10 @@
     "verdicts": "node bin/verdicts.ts",
     "verdicts-progress": "node bin/verdicts.ts ../vectors/stf/disputes/tiny/progress_with_verdicts-4.json",
     "offenders": "node bin/offenders.ts",
-    "offenders-progress": "node bin/offenders.ts ../vectors/stf/disputes/tiny/progress_with_verdicts-4.json"
+    "offenders-progress": "node bin/offenders.ts ../vectors/stf/disputes/tiny/progress_with_verdicts-4.json",
+    "cores": "node bin/cores.ts",
+    "cores-invalidated": "node bin/cores.ts ../vectors/stf/disputes/tiny/progress_invalidates_avail_assignments-1.json",
+    "check-disputes": "node bin/check-disputes.ts"
   },
   "dependencies": {
     "@noble/curves": "2.4.0",

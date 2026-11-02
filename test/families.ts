@@ -16,6 +16,9 @@ import { shuffleWithHash } from "../src/shuffle.ts";
 import { EpochMark, TicketBody, TicketEnvelope } from "../src/block.ts";
 import type { SafroleJson } from "../src/safrole.ts";
 import { safroleError, safroleFromJson, safroleStep } from "../src/safrole.ts";
+import { PendingReports } from "../src/cores.ts";
+import { clearJudged, disputesError, judges, offendersMark, outcome, PastJudgements, recordOffenders, recordVerdicts } from "../src/disputes.ts";
+import { ValidatorKey } from "../src/state.ts";
 
 /** The size a vector is written for, from its folder: full or tiny. */
 const configOf = (name: string): Config => (name.includes("/full/") ? FULL : TINY);
@@ -30,6 +33,8 @@ export const FAMILIES: Family[] = [
   { folders: ["trie"], check: checkTrie },
   { folders: ["shuffle"], check: checkShuffle },
   { folders: ["stf/safrole/tiny", "stf/safrole/full"], check: checkSafrole },
+  { folders: ["stf/history/tiny", "stf/history/full"], check: checkHistory },
+  { folders: ["stf/disputes/tiny", "stf/disputes/full"], check: checkDisputes },
 ];
 
 /** The codecs for the codec vectors, by the vectors' names for the structures. A codec
@@ -133,4 +138,44 @@ function checkSafrole(name: string) {
   unchanged(vector, [
     "tau", "eta", "iota", "gamma_k", "kappa", "lambda", "gamma_a", "gamma_s", "gamma_z",
   ]);
+}
+
+/** Validator keys from a vector's JSON. */
+const keys = (json: unknown[]) => json.map((key) => ValidatorKey.fromJson(key));
+
+type DisputesState = {
+  psi: unknown;
+  rho: unknown;
+  tau: number;
+  kappa: unknown[];
+  lambda: unknown[];
+};
+
+/** A disputes vector: ψ′, ρ† and the offenders mark, or the rule a refused block breaks. */
+function checkDisputes(name: string) {
+  const vector = vectorJson(name) as StfVector<{ disputes: unknown }, DisputesState>;
+  const config = configOf(name);
+  const { input, pre_state } = vector;
+  const disputes = DisputesExtrinsic.fromJson(input.disputes);
+  const psi = PastJudgements.fromJson(pre_state.psi);
+  const [active, previous] = [keys(pre_state.kappa), keys(pre_state.lambda)];
+  const error = disputesError(config, disputes, psi, pre_state.tau, active, previous);
+  sameError(error, vector);
+  if (error) return unchanged(vector, []);
+  const judged = disputes.verdicts.map((v) => ({
+    target: v.target,
+    outcome: outcome(v, judges(config, pre_state.tau, v.age, active, previous).length),
+  }));
+  const after = recordOffenders(recordVerdicts(psi, judged), disputes);
+  assert.deepEqual(after, PastJudgements.fromJson(vector.post_state.psi), "psi differs");
+  const cores = PendingReports(config);
+  const cleared = clearJudged(cores.fromJson(pre_state.rho), judged);
+  assert.deepEqual(cleared, cores.fromJson(vector.post_state.rho), "rho differs");
+  const ok = vector.output?.ok as { offenders_mark: string[] };
+  assert.deepEqual(offendersMark(disputes).map(toHex), ok.offenders_mark, "offenders_mark differs");
+  unchanged(vector, ["psi", "rho"]);
+}
+
+function checkHistory(name: string): void {
+  throw new Error("Function not implemented.");
 }
