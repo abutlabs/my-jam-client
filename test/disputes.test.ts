@@ -8,13 +8,12 @@ import { ValidatorKey } from "../src/state.ts";
 import { vectorFiles, vectorJson } from "./vectors.ts";
 import type { Outcome } from "../src/disputes.ts";
 import { toHex } from "../src/bytes.ts";
+import type { Bytes } from "../src/bytes.ts";
 import { PendingReports } from "../src/cores.ts";
 import type { PendingReport } from "../src/cores.ts";
 import { encode } from "../src/codec/codec.ts";
 import { blake2b256 } from "../src/hash.ts";
 import { WorkReport } from "../src/work.ts";
-import type { Bytes } from "../src/bytes.ts";
-
 
 /** A verdict with `valid` "valid" votes out of `count`, unsigned: enough for counting. */
 function verdictWith(valid: number, count: number): Verdict {
@@ -227,6 +226,7 @@ for (const { config, name } of VERDICT_VECTORS) {
     assert.equal(broken, expected);
   });
 }
+
 /** What every disputes rule says of vector `name`: null (accepted) or the rule broken. */
 function disputesVerdict(config: typeof TINY, name: string) {
   const { input, pre_state } = vectorJson(name) as DisputesVector;

@@ -8,7 +8,7 @@ import { toHex } from "../src/bytes.ts";
 import { keccak256 } from "../src/hash.ts";
 import { Run } from "../src/obs.ts";
 
-const count = Number(process.argv[2] ?? 64);
+const count = Number(process.argv[2] ?? 16);
 const run = new Run("belt");
 let belt: Belt = [];
 for (let items = 1; items <= count; items++) {

@@ -1,14 +1,20 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fromHex, toHex } from "../src/bytes.ts";
+import type { Bytes } from "../src/bytes.ts";
 
 test("hex there and back", () => {
-  const bytes = Uint8Array.of(1, 2, 255);
-  assert.equal(toHex(bytes), "0x0102ff");
-  assert.deepEqual(fromHex("0x0102ff"), bytes);
+  const bytes: Bytes = Uint8Array.of(1, 2, 255);
+  const hex: string = toHex(bytes);
+  assert.equal(hex, "0x0102ff");
+  const back: Bytes = fromHex("0x0102ff");
+  assert.deepEqual(back, bytes);
 });
 
 test("no bytes at all is just 0x", () => {
-  assert.equal(toHex(new Uint8Array(0)), "0x");
-  assert.deepEqual(fromHex("0x"), new Uint8Array(0));
+  const empty: Bytes = new Uint8Array(0);
+  const hex: string = toHex(empty);
+  assert.equal(hex, "0x");
+  const back: Bytes = fromHex("0x");
+  assert.deepEqual(back, empty);
 });

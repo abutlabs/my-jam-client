@@ -15,7 +15,6 @@ export class Reader {
     this.#trace = trace;
   }
 
-  
   /** The next n bytes. */
   bytes(n: number): Bytes {
     const out = this.#bytes.slice(this.#at, this.#at + n);

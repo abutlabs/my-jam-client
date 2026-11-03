@@ -6,7 +6,6 @@ import { keccak_256 } from "@noble/hashes/sha3.js";
 
 /** H(x): Blake2b with a 32-byte output. */
 export function blake2b256(data: Bytes): Bytes {
-  //return blake2b(data);
   return blake2b(data, { dkLen: 32 });
 }
 

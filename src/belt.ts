@@ -37,3 +37,23 @@ export function superPeak(belt: Belt): Bytes {
   const last = peaks[peaks.length - 1];
   return keccak256(concatBytes(PEAK, superPeak(peaks.slice(0, -1)), last));
 }
+
+/** "$node" in the Gray Paper: the prefix of a Merkle tree's inner nodes. */
+const NODE = new TextEncoder().encode("node");
+
+/**
+ * N (GP App. E): the node over `items`: none, the zero hash; one, the item itself; more,
+ * the hash of "node" and the nodes over the first half (rounded up) and the rest.
+ */
+function node(items: Bytes[]): Bytes {
+  if (items.length === 0) return new Uint8Array(32);
+  if (items.length === 1) return items[0];
+  const half = Math.ceil(items.length / 2);
+  return keccak256(concatBytes(NODE, node(items.slice(0, half)), node(items.slice(half))));
+}
+
+/** M_B (GP App. E): the well-balanced Merkle root of `items`, with Keccak. A single item is
+ * hashed, so the root is always a hash; more items are joined by N. */
+export function wellBalancedRoot(items: Bytes[]): Bytes {
+  return items.length === 1 ? keccak256(items[0]) : node(items);
+}

@@ -9,7 +9,10 @@ import { decode, encode } from "../src/codec/codec.ts";
 import { test } from "node:test";
 import type { Config } from "../src/config.ts";
 import { FULL, TINY } from "../src/config.ts";
-import { fromHex } from "../src/bytes.ts";
+import { fromHex, toHex } from "../src/bytes.ts";
+import { RequestHistory, serviceCode } from "../src/services.ts";
+import { preimageKey, requestKey } from "../src/state.ts";
+import type { KeyValue } from "../src/trie.ts";
 
 /** The official test vectors' folder: vectors/, at the repo root. */
 export const VECTORS = fileURLToPath(new URL("../../vectors/", import.meta.url));
@@ -60,11 +63,40 @@ export function traceState(family: string, n: number) {
     value: fromHex(e.value),
   }));
   return { entries, promised: trace.block.header.parent_state_root, block: trace.block };
-  //return { entries, promised: trace.block.header.parent_state_root };
 }
 
 /** The JSON vectors in a folder of vectors/, by name, such as "stf/safrole/tiny". */
 export function vectorFiles(folder: string): string[] {
   const files = readdirSync(VECTORS + folder).filter((f) => f.endsWith(".json"));
   return files.map((f) => `${folder}/${f}`);
+}
+
+/** A preimages vector's account, the way the vector writes it. */
+export type PreimagesAccount = {
+  id: number;
+  data: {
+    preimage_blobs: { blob: string }[];
+    preimage_requests: { key: { hash: string; length: number }; value: number[] }[];
+  };
+};
+
+/** Accounts as state entries: every preimage and every request, under its key, sorted. */
+export function accountEntries(accounts: PreimagesAccount[]): KeyValue[] {
+  const entries = accounts.flatMap(({ id, data }) => [
+    ...data.preimage_blobs.map(({ blob }) => ({
+      key: preimageKey(id, fromHex(blob)),
+      value: fromHex(blob),
+    })),
+    ...data.preimage_requests.map(({ key, value }) => ({
+      key: requestKey(id, fromHex(key.hash), key.length),
+      value: encode(RequestHistory, value),
+    })),
+  ]);
+  return entries.sort((a, b) => toHex(a.key).localeCompare(toHex(b.key)));
+}
+
+/** The code of service 0, from the state before the first block of the fallback trace. */
+export function bootstrapCode(): Uint8Array {
+  const { entries } = traceState("fallback", 1);
+  return serviceCode(entries, 0)!;
 }

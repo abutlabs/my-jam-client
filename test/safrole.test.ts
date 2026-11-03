@@ -12,7 +12,6 @@ import type { Bytes } from "../src/bytes.ts";
 import { TicketBody, EpochMark, TicketEnvelope, Block } from "../src/block.ts";
 import type { Header } from "../src/block.ts";
 
-
 /** The parts of a safrole vector's state the lessons use so far. */
 type SafroleState = {
   tau: number;

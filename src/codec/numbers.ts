@@ -3,7 +3,6 @@
 import type { Bytes } from "../bytes.ts";
 import { concatBytes } from "../bytes.ts";
 
-
 /** ℰ_l(x): x in exactly l bytes, least significant first. */
 export function encodeFixed(x: bigint, l: number): Bytes {
   const bytes = new Uint8Array(l);
@@ -44,4 +43,3 @@ export function decodeNatural(bytes: Bytes, offset = 0): { value: bigint; length
   const top = BigInt(first & (0x7f >> l)); // the bits after the l ones and the zero
   return { value: (top << BigInt(8 * l)) | rest, length: l + 1 };
 }
-

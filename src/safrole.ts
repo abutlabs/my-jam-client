@@ -3,17 +3,20 @@
 
 import type { Bytes } from "./bytes.ts";
 import { concatBytes, toHex, fromHex } from "./bytes.ts";
-import { entropyHistory } from "./epoch.ts";
+import { entropyHistory, epochOf, phaseOf } from "./epoch.ts";
 import { blake2b256 } from "./hash.ts";
 import type { Config } from "./config.ts";
 import { decodeFixed, encodeFixed } from "./codec/numbers.ts";
-import { epochOf, phaseOf } from "./epoch.ts";
 import { TicketBody, Header } from "./block.ts";
 import type { EpochMark, TicketEnvelope } from "./block.ts";
 import { ValidatorKey } from "./state.ts";
 import { vrfOutput, ringRoot, ringProofsHold, checkSignature } from "./bandersnatch.ts";
 import { encode } from "./codec/codec.ts";
 
+/**
+ * η′: every block stirs its VRF output into the accumulator, η′₀ = H(η₀ ⌢ output), and at a
+ * new epoch the history moves along one.
+ */
 export function nextEntropy(entropy: Bytes[], vrfOutput: Bytes, newEpoch: boolean): Bytes[] {
   const accumulator = blake2b256(concatBytes(entropy[0], vrfOutput));
   return [accumulator, ...entropyHistory(entropy, newEpoch)];

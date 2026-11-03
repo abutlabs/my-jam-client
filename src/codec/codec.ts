@@ -7,28 +7,6 @@ import { Writer } from "./writer.ts";
 import { fromHex } from "../bytes.ts";
 import type { Trace } from "./reader.ts";
 
-/** 𝔹_n: exactly n bytes, encoded as themselves. */
-export function fixedBytes(n: number): Codec<Bytes> {
-  return {
-    encode: (w, b) => w.bytes(b),
-    decode: (r) => r.bytes(n),
-    fromJson: (json) => fromHex(json as string),
-  };
-}
-
-/** ℍ: a 32-byte hash. */
-export const hash = fixedBytes(32);
-
-/** ↕x: a blob of any length, its length first. */
-export const blob: Codec<Bytes> = {
-  encode: (w, b) => {
-    w.natural(BigInt(b.length));
-    w.bytes(b);
-  },
-  decode: (r) => r.bytes(Number(r.natural())),
-  fromJson: (json) => fromHex(json as string),
-};
-
 export interface Codec<T> {
   encode(w: Writer, value: T): void;
   decode(r: Reader): T;
@@ -88,6 +66,28 @@ export const natural32: Codec<number> = {
   encode: (w, x) => w.natural(BigInt(x)),
   decode: (r) => Number(r.natural()),
   fromJson: (json) => json as number,
+};
+
+/** 𝔹_n: exactly n bytes, encoded as themselves. */
+export function fixedBytes(n: number): Codec<Bytes> {
+  return {
+    encode: (w, b) => w.bytes(b),
+    decode: (r) => r.bytes(n),
+    fromJson: (json) => fromHex(json as string),
+  };
+}
+
+/** ℍ: a 32-byte hash. */
+export const hash = fixedBytes(32);
+
+/** ↕x: a blob of any length, its length first. */
+export const blob: Codec<Bytes> = {
+  encode: (w, b) => {
+    w.natural(BigInt(b.length));
+    w.bytes(b);
+  },
+  decode: (r) => r.bytes(Number(r.natural())),
+  fromJson: (json) => fromHex(json as string),
 };
 
 /** ↕[...]: a sequence of any length, its length first. */

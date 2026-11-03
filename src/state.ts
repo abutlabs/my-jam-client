@@ -11,6 +11,7 @@ import type { Config } from "./config.ts";
 import { TicketBody } from "./block.ts";
 import type { Sealers } from "./safrole.ts";
 import { Recent } from "./history.ts";
+import { AuthPools, AuthQueues } from "./authorization.ts";
 
 /** C(i): the key of state component i. The byte i, then 30 zeros. */
 export function componentKey(i: number): Bytes {
@@ -123,4 +124,24 @@ export function readSafroleState(config: Config, entries: KeyValue[]): SafroleSt
 /** β, C(3): the recent blocks, and the belt. */
 export function readRecent(entries: KeyValue[]): Recent {
   return component(entries, 3, Recent);
+}
+
+/** α, C(1): each core's authorizer pool. */
+export function readAuthPools(config: Config, entries: KeyValue[]): Bytes[][] {
+  return component(entries, 1, AuthPools(config));
+}
+
+/** ϕ, C(2): each core's authorizer queue. */
+export function readAuthQueues(config: Config, entries: KeyValue[]): Bytes[][] {
+  return component(entries, 2, AuthQueues(config));
+}
+
+/** Where service s keeps the preimage whose hash is h: C(s, ℰ₄(2^32 − 2) ⌢ h). */
+export function preimageHashKey(s: number, h: Bytes): Bytes {
+  return serviceItemKey(s, concatBytes(encodeFixed(2n ** 32n - 2n, 4), h));
+}
+
+/** Where service s keeps the value under storage key k: C(s, ℰ₄(2^32 − 1) ⌢ k). */
+export function storageKey(s: number, k: Bytes): Bytes {
+  return serviceItemKey(s, concatBytes(encodeFixed(2n ** 32n - 1n, 4), k));
 }

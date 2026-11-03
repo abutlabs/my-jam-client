@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { appendToBelt, superPeak } from "../src/belt.ts";
+import { appendToBelt, superPeak, wellBalancedRoot } from "../src/belt.ts";
 import type { Belt } from "../src/belt.ts";
-import { fromHex, toHex } from "../src/bytes.ts";
+import { fromHex, toHex, concatBytes } from "../src/bytes.ts";
 import { keccak256 } from "../src/hash.ts";
 import { vectorFiles, vectorJson } from "./vectors.ts";
 import type { Bytes } from "../src/bytes.ts";
@@ -50,4 +50,14 @@ test("the belt after each block of the history vectors, and its super-peak", () 
     }
   }
   assert.equal(checked, 8);
+});
+
+test("M_B: nothing is zeros, one item its hash, two items joined under \"node\"", () => {
+  const [a, b] = [Uint8Array.of(1), Uint8Array.of(2)];
+  const none: Bytes = wellBalancedRoot([]);
+  assert.deepEqual(none, new Uint8Array(32));
+  const one: Bytes = wellBalancedRoot([a]);
+  assert.deepEqual(one, keccak256(a));
+  const two: Bytes = wellBalancedRoot([a, b]); // the items themselves, not their hashes
+  assert.deepEqual(two, keccak256(concatBytes(new TextEncoder().encode("node"), a, b)));
 });

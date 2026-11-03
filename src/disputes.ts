@@ -5,12 +5,11 @@ import type { Verdict, Culprit, DisputesExtrinsic, Fault } from "./block.ts";
 import type { Bytes } from "./bytes.ts";
 import { concatBytes, toHex } from "./bytes.ts";
 import type { Value } from "./codec/codec.ts";
-import { fixedBytes, hash, record, seq } from "./codec/codec.ts";
+import { fixedBytes, hash, record, seq, encode } from "./codec/codec.ts";
 import type { Config } from "./config.ts";
 import { epochOf } from "./epoch.ts";
 import { verifyEd25519 } from "./signature.ts";
 import type { ValidatorKey } from "./state.ts";
-import { encode } from "./codec/codec.ts";
 import type { PendingReport } from "./cores.ts";
 import { blake2b256 } from "./hash.ts";
 import { WorkReport } from "./work.ts";
@@ -84,7 +83,7 @@ const GUARANTEE = new TextEncoder().encode("jam_guarantee");
 
 /** Whether a culprit's signature really is its guarantee of the report: the evidence. */
 export function culpritSigned(culprit: Culprit): boolean {
-  return verifyEd25519(culprit.key, concatBytes(GUARANTEE, culprit.target), culprit.signature);
+  return verifyEd25519(culprit.key, guaranteeMessage(culprit.target), culprit.signature);
 }
 
 /** Whether a fault's signature really is its vote on the report, the way it voted. */
@@ -209,4 +208,9 @@ export function disputesError(
 ): string | null {
   const verdicts = verdictError(config, disputes.verdicts, before, time, active, previous);
   return verdicts ?? offenseError(config, disputes, before, time, active, previous);
+}
+
+/** What a guarantor signs about a report: X_G, then the report's hash. */
+export function guaranteeMessage(reportHash: Bytes): Bytes {
+  return concatBytes(GUARANTEE, reportHash);
 }

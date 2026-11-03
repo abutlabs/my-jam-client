@@ -1,8 +1,6 @@
 import { test } from "node:test";
 import { RefineContext, WorkItem, WorkPackage, WorkDigest, WorkResult, WorkReport } from "../src/work.ts";
 import { checkCodecVector } from "./vectors.ts";
-
-
 import assert from "node:assert/strict";
 import { fromHex, toHex } from "../src/bytes.ts";
 import { encode } from "../src/codec/codec.ts";

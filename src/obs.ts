@@ -1,5 +1,6 @@
 // Observability: the client tells the observability stack what it does. Events go to
 // Loki, numbers to the Pushgateway, and Grafana shows both.
+
 import { toHex } from "./bytes.ts";
 
 const LOKI = "http://127.0.0.1:3100";

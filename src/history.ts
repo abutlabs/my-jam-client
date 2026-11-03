@@ -39,29 +39,6 @@ export const NewBlock = record({
   slot: u32,
   work_packages: seq(ReportedPackage),
 });
-
-/** Codec's record builds one codec — encode, decode and fromJson — from a single field
- * declaration. The declaration's field order is the byte order on the wire, the object's
- * TypeScript type is derived from the same declaration (Value<typeof NewBlock>), and a
- * value round-trips to and from binary (hex is just those bytes printed). JSON is
- * one-way: fromJson reads the test vectors' format in, nothing writes it out. */
-/* const NewBlock: Codec<NewBlock> = {
-  encode: (w, b) => {
-    hash.encode(w, b.header_hash);
-    hash.encode(w, b.parent_state_root);
-    hash.encode(w, b.accumulate_root);
-    u32.encode(w, b.slot);
-    seq(ReportedPackage).encode(w, b.work_packages);
-  },
-  decode: (r) => ({
-    header_hash: hash.decode(r),
-    parent_state_root: hash.decode(r),
-    accumulate_root: hash.decode(r),
-    slot: u32.decode(r),
-    work_packages: seq(ReportedPackage).decode(r),
-  }),
-  fromJson: (json) => ({  the same five lines a third time }),
-}; */
 export type NewBlock = Value<typeof NewBlock>;
 
 /** H: how many recent blocks the state remembers. */

@@ -2,35 +2,18 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Block, headerHash } from "../src/block.ts";
 import { TINY } from "../src/config.ts";
-import { NewBlock, Recent, RECENT_BLOCKS, recordBlock } from "../src/history.ts";
+import { Recent, RECENT_BLOCKS } from "../src/history.ts";
 import { readRecent } from "../src/state.ts";
-import { traceState, vectorFiles, vectorJson } from "./vectors.ts";
+import { checkHistory } from "./families.ts";
+import { traceState, vectorFiles } from "./vectors.ts";
 import type { Header } from "../src/block.ts";
 import type { Bytes } from "../src/bytes.ts";
 import type { RecentBlock } from "../src/history.ts";
 
-/** A history vector's β, as your client's Recent. */
-function recent(beta: { history: unknown[]; mmr: { peaks: unknown[] } }): Recent {
-  return Recent.fromJson({ history: beta.history, belt: beta.mmr.peaks });
-}
-
 test("β′: the last block learns its state root, the new one joins, eight are kept", () => {
-  let checked = 0;
-  for (const size of ["tiny", "full"]) {
-    for (const name of vectorFiles(`stf/history/${size}`)) {
-      const { input, pre_state, post_state } = vectorJson(name) as {
-        input: unknown;
-        pre_state: { beta: { history: unknown[]; mmr: { peaks: unknown[] } } };
-        post_state: { beta: { history: unknown[]; mmr: { peaks: unknown[] } } };
-      };
-      const before: Recent = recent(pre_state.beta);
-      const after: Recent = recordBlock(before, NewBlock.fromJson(input));
-      const expected: Recent = recent(post_state.beta);
-      assert.deepEqual(after, expected, name);
-      checked++;
-    }
-  }
-  assert.equal(checked, 8);
+  const names: string[] = [...vectorFiles("stf/history/tiny"), ...vectorFiles("stf/history/full")];
+  for (const name of names) checkHistory(name);
+  assert.equal(names.length, 8);
 });
 
 test("β in real states: the newest block remembered is the block before", () => {

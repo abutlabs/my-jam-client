@@ -1,18 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fromHex } from "../src/bytes.ts";
-import { decodeFixed, encodeFixed } from "../src/codec/numbers.ts";
+import { fromHex, toHex } from "../src/bytes.ts";
+import { decodeFixed, encodeFixed, decodeNatural, encodeNatural } from "../src/codec/numbers.ts";
 import type { Bytes } from "../src/bytes.ts";
-import { toHex } from "../src/bytes.ts";
-import { decodeNatural, encodeNatural } from "../src/codec/numbers.ts";
-
-const NATURALS: [bigint, string][] = [
-  [0n, "0x00"],
-  [127n, "0x7f"],
-  [128n, "0x8080"],
-  [16384n, "0xc00040"],
-  [2n ** 64n - 70n, "0xffbaffffffffffffff"],
-];
 
 test("ℰ_l writes the least significant byte first", () => {
   const twoBytes: Bytes = encodeFixed(4807n, 2);
@@ -29,6 +19,14 @@ test("decoding reads the bytes back", () => {
   const back: bigint = decodeFixed(encoded);
   assert.equal(back, big);
 });
+
+const NATURALS: [bigint, string][] = [
+  [0n, "0x00"],
+  [127n, "0x7f"],
+  [128n, "0x8080"],
+  [16384n, "0xc00040"],
+  [2n ** 64n - 70n, "0xffbaffffffffffffff"],
+];
 
 test("ℰ, the compact natural, at different lengths", () => {
   for (const [x, hex] of NATURALS) {

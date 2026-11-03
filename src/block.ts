@@ -1,7 +1,6 @@
 // Blocks: a header, and the extrinsic, the data a block brings in from outside (GP §5).
 
 import type { Value } from "./codec/codec.ts";
-
 import { blob, fixedBytes, record, seq, u32, u8, hash, u16, bool, option, seqN, encode } from "./codec/codec.ts";
 import type { Config } from "./config.ts";
 import { WorkReport } from "./work.ts";
@@ -144,7 +143,6 @@ export function Header(config: Config) {
 }
 export type Header = Value<ReturnType<typeof Header>>;
 
-
 /** A block's extrinsic (GP §4): the five parts, in Appendix C's order. */
 export function Extrinsic(config: Config) {
   return record({
@@ -165,7 +163,6 @@ export function Block(config: Config) {
   });
 }
 export type Block = Value<ReturnType<typeof Block>>;
-
 
 /** A header's hash (GP §5): what the next block names as its parent. */
 export function headerHash(config: Config, header: Header): Bytes {
